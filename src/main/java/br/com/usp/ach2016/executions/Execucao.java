@@ -9,7 +9,7 @@ import static br.com.usp.ach2016.utils.IOUtils.criarPastaResultadosNExecucao;
 public abstract class Execucao {
 
     final Dataset dataset;
-    final ParametrosRede parametrosRede;
+    ParametrosRede parametrosRede;
     final ParametrosTreinamento parametrosTreinamento;
     final String caminhoPastaResultadosExecucao;
 

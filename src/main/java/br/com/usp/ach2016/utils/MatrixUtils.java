@@ -5,6 +5,11 @@ import br.com.usp.ach2016.model.ResultadoAnaliseConfusao;
 import org.ejml.dense.row.CommonOps_DDRM;
 import org.ejml.simple.SimpleMatrix;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+
 import static br.com.usp.ach2016.utils.MetricsUtils.calcularAcuracia;
 
 public class MatrixUtils {
@@ -94,5 +99,42 @@ public class MatrixUtils {
         CommonOps_DDRM.extract(mat1.getDDRM(), 0, mat1.getNumRows(), 0, mat1.getNumCols(), combinada.getDDRM(), 0, 0);
         CommonOps_DDRM.extract(mat2.getDDRM(), 0, mat2.getNumRows(), 0, mat2.getNumCols(), combinada.getDDRM(), mat1.getNumRows(), 0);
         return combinada;
+    }
+
+    public static void embaralharAleatoriamente(SimpleMatrix x, SimpleMatrix y, long semente) {
+        if (x.numRows() != y.numRows()) {
+            throw new IllegalArgumentException("Número de linhas de X e Y deve ser igual.");
+        }
+
+        int numAmostras = x.numRows();
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < numAmostras; i++) {
+            indices.add(i);
+        }
+
+        Collections.shuffle(indices, new Random(semente));
+
+        SimpleMatrix xEmbaralhado = new SimpleMatrix(numAmostras, x.numCols());
+        SimpleMatrix yEmbaralhado = new SimpleMatrix(numAmostras, y.numCols());
+
+        for (int i = 0; i < numAmostras; i++) {
+            int idx = indices.get(i);
+            for (int j = 0; j < x.numCols(); j++) {
+                xEmbaralhado.set(i, j, x.get(idx, j));
+            }
+            for (int j = 0; j < y.numCols(); j++) {
+                yEmbaralhado.set(i, j, y.get(idx, j));
+            }
+        }
+
+        // Substitui os dados originais (altere se preferir retornar novos objetos)
+        for (int i = 0; i < numAmostras; i++) {
+            for (int j = 0; j < x.numCols(); j++) {
+                x.set(i, j, xEmbaralhado.get(i, j));
+            }
+            for (int j = 0; j < y.numCols(); j++) {
+                y.set(i, j, yEmbaralhado.get(i, j));
+            }
+        }
     }
 }

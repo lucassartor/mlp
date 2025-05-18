@@ -49,6 +49,9 @@ public class ExecucaoComParadaAntecipada extends Execucao {
         paramsAdicionaisTreino.put("Melhor Época (Validação)", redeNeural.epocaMelhorErro);
         paramsAdicionaisTreino.put("Melhor Erro Validação", String.format("%.8f", redeNeural.melhorErroValidacao));
 
+        salvarMatrizConfusao(caminhoPastaResultadosExecucao, matrizConfusao, dataset.rotulosClasses());
+        //salvarHistoricoDeltaPesos(caminhoPastaResultadosExecucao, redeNeural.historicoMediaDeltaW1, "W1");
+        //salvarHistoricoDeltaPesos(caminhoPastaResultadosExecucao, redeNeural.historicoMediaDeltaW2, "W2");
         salvarResultadosTeste(caminhoPastaResultadosExecucao, dataset, previsoesTeste, parametrosRede, parametrosTreinamento, paramsAdicionaisTreino, resultadoAnaliseConfusao);
 
         System.out.println("===== FINALIZADA: " + parametrosRede.nomeExecucao().toUpperCase() + " =====");

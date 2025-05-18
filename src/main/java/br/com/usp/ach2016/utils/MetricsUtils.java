@@ -2,6 +2,8 @@ package br.com.usp.ach2016.utils;
 
 import org.ejml.simple.SimpleMatrix;
 
+import java.util.concurrent.TimeUnit;
+
 public class MetricsUtils {
 
     public static double calcularAcuracia(SimpleMatrix yVerdadeiroOneHot, SimpleMatrix yPrevistoProbs) {
@@ -37,5 +39,18 @@ public class MetricsUtils {
             }
         }
         return indiceMax;
+    }
+
+    /**
+     * Formata a duração em milissegundos para uma string legível (HH:mm:ss.SSS).
+     */
+    public static String formatarDuracao(long millis) {
+        long horas = TimeUnit.MILLISECONDS.toHours(millis);
+        millis -= TimeUnit.HOURS.toMillis(horas);
+        long minutos = TimeUnit.MILLISECONDS.toMinutes(millis);
+        millis -= TimeUnit.MINUTES.toMillis(minutos);
+        long segundos = TimeUnit.MILLISECONDS.toSeconds(millis);
+        millis -= TimeUnit.SECONDS.toMillis(segundos);
+        return String.format("%02d:%02d:%02d.%03d", horas, minutos, segundos, millis);
     }
 }

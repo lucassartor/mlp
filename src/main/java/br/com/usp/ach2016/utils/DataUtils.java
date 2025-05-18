@@ -20,24 +20,26 @@ public class DataUtils {
      * Os arquivos são lidos como recursos do classpath.
      * Os pixels em X são convertidos de -1/1 para 0.0/1.0.
      * Os rótulos de caracteres em Y são convertidos para o formato one-hot encoding.
-     * Os dados são divididos em conjuntos de treinamento e teste.
+     * Os dados são divididos em conjuntos de treinamento, validação e teste.
      *
-     * @param caminhoRecursoX Caminho para o arquivo X.txt dentro da pasta resources (ex: "datasets/caracteres/X.txt").
-     * @param caminhoRecursoY Caminho para o arquivo Y_letra.txt dentro da pasta resources (ex: "datasets/caracteres/Y_letra.txt").
+     * @param caminhoX Caminho para o arquivo X.txt dentro da pasta resources (ex: "datasets/caracteres/X.txt").
+     * @param caminhoY Caminho para o arquivo Y_letra.txt dentro da pasta resources (ex: "datasets/caracteres/Y_letra.txt").
      * @param numAmostrasTeste Número de amostras a serem separadas para o conjunto de teste (as últimas N amostras do arquivo).
      * @param numAmostrasValidacao Número de amostras (retiradas do final do conjunto de treino original) para o conjunto de validação
      * @return Um objeto `Dataset` contendo as matrizes de treino/teste e informações de classe, ou `null` se ocorrer um erro.
      */
-    public static Dataset carregarDadosDataset(String caminhoRecursoX, String caminhoRecursoY,
-                                               int numAmostrasTeste, int numAmostrasValidacao) {
+    public static Dataset carregarDadosDataset(String caminhoX,
+                                               String caminhoY,
+                                               int numAmostrasTeste,
+                                               int numAmostrasValidacao) {
         List<String> linhasYBrutas = new ArrayList<>();
         List<double[]> todasLinhasX = new ArrayList<>();
         List<Character> rotulosClasses = new ArrayList<>();
         Map<Character, Integer> caractereParaIndice = new HashMap<>();
 
-        InputStream fluxoEntradaY = DataUtils.class.getClassLoader().getResourceAsStream(caminhoRecursoY);
+        InputStream fluxoEntradaY = DataUtils.class.getClassLoader().getResourceAsStream(caminhoY);
         if (fluxoEntradaY == null) {
-            System.err.println("Erro Crítico: Arquivo de rótulos Y não encontrado no classpath: " + caminhoRecursoY);
+            System.err.println("Erro Crítico: Arquivo de rótulos Y não encontrado no classpath: " + caminhoY);
             return null;
         }
         try (BufferedReader leitorY = new BufferedReader(new InputStreamReader(fluxoEntradaY))) {
@@ -66,7 +68,7 @@ public class DataUtils {
             System.out.println("Classes identificadas (" + rotulosClasses.size() + "): " + rotulosClasses);
 
         } catch (IOException e) {
-            System.err.println("Erro de IO ao ler o arquivo de rótulos Y do classpath: " + caminhoRecursoY);
+            System.err.println("Erro de IO ao ler o arquivo de rótulos Y do classpath: " + caminhoY);
             e.printStackTrace();
             return null;
         }
@@ -80,9 +82,9 @@ public class DataUtils {
             return null;
         }
 
-        InputStream fluxoEntradaX = DataUtils.class.getClassLoader().getResourceAsStream(caminhoRecursoX);
+        InputStream fluxoEntradaX = DataUtils.class.getClassLoader().getResourceAsStream(caminhoX);
         if (fluxoEntradaX == null) {
-            System.err.println("Erro: Arquivo de entradas X não encontrado no classpath: " + caminhoRecursoX);
+            System.err.println("Erro: Arquivo de entradas X não encontrado no classpath: " + caminhoX);
             return null;
         }
         try (BufferedReader leitorX = new BufferedReader(new InputStreamReader(fluxoEntradaX))) {
@@ -114,19 +116,13 @@ public class DataUtils {
                 // Converte a string de pixels para double[] (0.0 ou 1.0)
                 double[] linhaPixel = new double[numAtributosEntrada];
                 for (int i = 0; i < numAtributosEntrada; i++) {
-                    try {
-                        // Converte o valor lido ("-1" ou "1") para double e depois mapeia para 0.0 ou 1.0
-                        linhaPixel[i] = (Double.parseDouble(valoresPixelStr[i].trim()) + 1.0) / 2.0;
-                    } catch (NumberFormatException e) {
-                        System.err.println("Erro de formato numérico na linha " + contadorLinha +
-                                ", coluna " + (i+1) + ", valor: '" + valoresPixelStr[i] + "' em " + caminhoRecursoX);
-                        linhaPixel[i] = 0.0; // Atribui um valor padrão em caso de erro, ou poderia lançar exceção
-                    }
+                    // Converte o valor lido ("-1" ou "1") para double e depois mapeia para 0.0 ou 1.0
+                    linhaPixel[i] = (Double.parseDouble(valoresPixelStr[i].trim()) + 1.0) / 2.0;
                 }
                 todasLinhasX.add(linhaPixel);
             }
         } catch (IOException e) {
-            System.err.println("Erro de IO ao ler o arquivo de entradas X do classpath: " + caminhoRecursoX);
+            System.err.println("Erro de IO ao ler o arquivo de entradas X do classpath: " + caminhoX);
             e.printStackTrace();
             return null;
         }

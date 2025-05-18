@@ -36,12 +36,53 @@ public class IOUtils {
         }
     }
 
+    private static String criarDiretorioSeNaoExistir(String caminhoDiretorio, boolean flag) {
+        File dir = new File(caminhoDiretorio);
+        if (!dir.exists()) {
+            boolean success = dir.mkdirs();
+            if (success) {
+                return caminhoDiretorio;  // Retorna o diretório criado
+            } else {
+                return getString(caminhoDiretorio);
+            }
+        }
+        return getString(caminhoDiretorio);
+    }
+
+    private static String getString(String caminhoDiretorio) {
+        if (caminhoDiretorio.contains("execucao")) {
+            // Se já existe, tenta incrementar o sufixo numérico
+            String base = caminhoDiretorio;
+            int numero = 2;
+
+            if (caminhoDiretorio.matches(".*\\d+$")) {
+                int i = caminhoDiretorio.length() - 1;
+                while (i >= 0 && Character.isDigit(caminhoDiretorio.charAt(i))) {
+                    i--;
+                }
+                base = caminhoDiretorio.substring(0, i + 1);
+                numero = Integer.parseInt(caminhoDiretorio.substring(i + 1)) + 1;
+            }
+
+            while (true) {
+                String novoCaminho = base + numero;
+                File novoDir = new File(novoCaminho);
+                if (!novoDir.exists()) {
+                    return criarDiretorioSeNaoExistir(novoCaminho, true);  // recursivo e retorna o nome criado
+                }
+                numero++;
+            }
+        }
+
+        return caminhoDiretorio;
+    }
+
     public static void criarPastaResultados() {
         criarDiretorioSeNaoExistir(DIRETORIO_SAIDA);
     }
 
-    public static void criarPastaResultadosExecucao(String nomeExecucao) {
-        criarDiretorioSeNaoExistir(DIRETORIO_SAIDA + "/" + nomeExecucao);
+    public static String criarPastaResultadosExecucao(String nomeExecucao) {
+        return criarDiretorioSeNaoExistir(DIRETORIO_SAIDA + "/" + nomeExecucao, true);
     }
 
     public static String criarPastaResultadosNExecucao(String nomeExecucao) {
@@ -141,7 +182,7 @@ public class IOUtils {
         try (PrintWriter escritor = new PrintWriter(new FileWriter(caminhoArquivo))) {
             escritor.println("Erro_Epoca");
             for (Double erro : historicoErro) {
-                escritor.printf("%.8f\n", erro);
+                escritor.printf(Locale.US, "%.8f\n", erro);
             }
         } catch (IOException e) {
             System.err.println("Erro ao salvar histórico de erros: " + e.getMessage());
@@ -155,19 +196,39 @@ public class IOUtils {
                                              final ParametrosRede parametrosRede) {
         String caminhoArquivo = caminhoPastaDaExecucao + "/hiperparametros.txt";
         try (PrintWriter escritor = new PrintWriter(new FileWriter(caminhoArquivo))) {
-            escritor.println("--- Hiperparâmetros e Arquitetura da Rede ---");
-            escritor.println("Tamanho da Entrada (Input Size): " + parametrosRede.tamanhoEntrada());
-            escritor.println("Tamanho da Camada Escondida (Hidden Size): " + parametrosRede.tamanhoCamadaEscondida());
-            escritor.println("Tamanho da Saída (Output Size): " + parametrosRede.tamanhoSaida());
-            escritor.println("Semente Aleatória (Random Seed): " + parametrosRede.sementeAleatoria());
-            escritor.println("Função de Ativação (Camada Escondida e Saída): Sigmoid");
 
-            escritor.println("\n--- Hiperparâmetros de Treinamento ---");
-            escritor.println("Épocas: " + parametrosTreinamento.epocas());
-            escritor.println("Taxa de Aprendizado (Learning Rate): " + parametrosTreinamento.taxaAprendizado());
+            escritor.println("========================================================");
+            escritor.println("        HIPERPARÂMETROS E CONFIGURAÇÃO DA EXECUÇÃO");
+            escritor.println("========================================================");
+            escritor.println();
+
+            escritor.println("--- Configuração do Dataset ---");
+            escritor.println("Dataset Utilizado: CARACTERES");
+            escritor.println();
+
+            escritor.println("--- Arquitetura da Rede Neural (MLP) ---");
+            escritor.println("Tamanho da Camada de Entrada: " + parametrosRede.tamanhoEntrada());
+            escritor.println("Tamanho da Camada Escondida: " + parametrosRede.tamanhoCamadaEscondida());
+            escritor.println("Tamanho da Camada de Saída: " + parametrosRede.tamanhoSaida());
+            escritor.println("Função de Ativação (Escondida e Saída): Sigmoid");
+            escritor.println();
+
+            escritor.println("--- Parâmetros de Inicialização e Treinamento ---");
+            escritor.println("Semente Aleatória para Pesos (Random Seed): " + parametrosRede.sementeAleatoria());
+            escritor.println("Taxa de Aprendizado (Learning Rate): " + String.format(Locale.US, "%.4f", parametrosTreinamento.taxaAprendizado()));
+            escritor.println("Número de Épocas Alvo/Máximo: " + parametrosTreinamento.epocas());
+            escritor.println("Otimizador: Gradiente Descendente em Lote (Batch Gradient Descent)");
+
             if (parametrosTreinamento.pacienciaParadaAntecipada() > 0) {
-                escritor.println("Paciencia da Parada Antecipada: " + parametrosTreinamento.pacienciaParadaAntecipada());
+                escritor.println("Parada Antecipada Ativada: Sim");
+                escritor.println("Paciência para Parada Antecipada: " + parametrosTreinamento.pacienciaParadaAntecipada() + " épocas");
+            } else {
+                escritor.println("Parada Antecipada Ativada: Não");
             }
+            escritor.println();
+
+            System.out.println("Hiperparâmetros salvos em " + caminhoArquivo);
+
         } catch (IOException e) {
             System.err.println("Erro ao salvar hiperparâmetros: " + e.getMessage());
             e.printStackTrace();
@@ -297,48 +358,45 @@ public class IOUtils {
             escritor.println("Acurácia Geral: " + String.format(Locale.US, "%.2f%%", analiseConfusao.acuracia()));
             escritor.println();
 
-            escritor.println("--- Métricas por Classe no Conjunto de Teste ---");
-            escritor.println(String.format("%-7s | %4s | %4s | %4s | %10s | %10s | %10s",
-                    "Classe", "TP", "FP", "FN", "Precisão", "Revocação", "Medida-F1"));
-            escritor.println("-----------------------------------------------------------------------");
+            // --- IMPRIMIR A MATRIZ DE CONFUSÃO FORMATADA ---
+            escritor.println("--- Matriz de Confusão (Conjunto de Treino) ---");
+            escritor.println("(Linhas = Real, Colunas = Previsto)");
 
-            int[] tps = analiseConfusao.verdadeirosPositivos();
-            int[] fps = analiseConfusao.falsosPositivos();
-            int[] fns = analiseConfusao.falsosNegativos();
-            double somaPrecisao = 0, somaRevocacao = 0, somaF1 = 0;
-            int classesComAmostras = 0; // Para calcular macro-average corretamente
-
-            for (int i = 0; i < rotulosClasses.size(); i++) {
-                char classe = rotulosClasses.get(i);
-                double precisao = (tps[i] + fps[i] == 0) ? 0 : (double) tps[i] / (tps[i] + fps[i]);
-                double revocacao = (tps[i] + fns[i] == 0) ? 0 : (double) tps[i] / (tps[i] + fns[i]);
-                double f1 = (precisao + revocacao == 0) ? 0 : 2 * (precisao * revocacao) / (precisao + revocacao);
-
-                escritor.println(String.format(Locale.US, "%-7c | %4d | %4d | %4d | %9.2f%% | %9.2f%% | %9.2f%%",
-                        classe, tps[i], fps[i], fns[i], precisao * 100, revocacao * 100, f1 * 100));
-
-                if (tps[i] + fns[i] > 0) { // Só considera classes presentes no conjunto para a média
-                    somaPrecisao += precisao;
-                    somaRevocacao += revocacao;
-                    somaF1 += f1; // F1 pode ser NaN se precisão e revocação forem 0, tratar se necessário
-                    classesComAmostras++;
-                }
+            // Cabeçalho da Matriz (Classes Previstas)
+            escritor.print("Real\\Prev"); // Canto superior esquerdo
+            for (Character rotulo : rotulosClasses) {
+                escritor.printf("%5c", rotulo); // Alinha cada rótulo de classe em 5 espaços
             }
-            escritor.println("-----------------------------------------------------------------------");
-            if (classesComAmostras > 0) {
-                escritor.println(String.format(Locale.US, "Médias (Macro): Precisão: %.2f%%, Revocação: %.2f%%, Medida-F1: %.2f%%",
-                        (somaPrecisao / classesComAmostras) * 100,
-                        (somaRevocacao / classesComAmostras) * 100,
-                        (somaF1 / classesComAmostras) * 100));
-            } else {
-                escritor.println("Médias (Macro): N/A (nenhuma classe com amostras encontradas)");
-            }
-            escritor.println("-----------------------------------------------------------------------");
             escritor.println();
+
+            // Linhas da Matriz
+            int[][] matrizConfusao = analiseConfusao.matrizConfusao();
+            for (int i = 0; i < matrizConfusao.length; i++) {
+                escritor.printf("%-9c", rotulosClasses.get(i)); // Rótulo da classe real (alinhado à esquerda em 5 espaços)
+                for (int j = 0; j < matrizConfusao[i].length; j++) {
+                    escritor.printf("%5d", matrizConfusao[i][j]); // Alinha cada contagem em 5 espaços
+                }
+                escritor.println();
+            }
+            escritor.println("-----------------------------------------------------------------------"); // Linha separadora
 
         } catch (IOException e) {
             System.err.println("Erro ao salvar o relatório detalhado: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    public static void salvarHistoricoDeltaPesos(String caminhoPastaDaExecucao, List<Double> historicoDelta, String nomeCamada) {
+        String caminhoArquivo = caminhoPastaDaExecucao + "/historico_delta_" + nomeCamada + ".csv";
+        System.out.println("Salvando histórico de delta de pesos para " + nomeCamada + " em: " + caminhoArquivo);
+        try (PrintWriter escritor = new PrintWriter(new FileWriter(caminhoArquivo))) {
+            escritor.println("Epoca,Media_Magnitude_Delta_" + nomeCamada);
+            for (int i = 0; i < historicoDelta.size(); i++) {
+                escritor.printf(Locale.US, "%d,%.8e\n", i + 1, historicoDelta.get(i)); // %.8e para notação científica se os deltas ficarem mto pequenos
+            }
+            System.out.println("Histórico de delta de pesos salvo.");
+        } catch (IOException e) {
+            System.err.println("Erro ao salvar histórico de delta de pesos para " + nomeCamada + ": " + e.getMessage());
         }
     }
 }

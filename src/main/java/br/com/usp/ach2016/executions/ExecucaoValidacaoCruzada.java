@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static br.com.usp.ach2016.utils.MatrixUtils.combinarMatrizesVerticalmente;
+import static br.com.usp.ach2016.utils.MatrixUtils.embaralharAleatoriamente;
 import static br.com.usp.ach2016.utils.MetricsUtils.calcularAcuracia;
 
 public class ExecucaoValidacaoCruzada extends Execucao {
@@ -31,6 +32,9 @@ public class ExecucaoValidacaoCruzada extends Execucao {
         // Combina treino e validação originais para formar o pool de dados do k-fold
         SimpleMatrix xTreinoVal = combinarMatrizesVerticalmente(dataset.xTreino(), dataset.xValidacao());
         SimpleMatrix yTreinoVal = combinarMatrizesVerticalmente(dataset.yTreino(), dataset.yValidacao());
+
+        // Embaralha valores aleatoriamente para evitar vies
+        embaralharAleatoriamente(xTreinoVal, yTreinoVal, parametrosRede.sementeAleatoria());
 
         int numTotalAmostrasTreinoVal = xTreinoVal.getNumRows();
         if (numTotalAmostrasTreinoVal < kFolds) {
@@ -81,7 +85,7 @@ public class ExecucaoValidacaoCruzada extends Execucao {
                     pastKFold);
             MLP redeFold = new MLP(parametrosRedeFold);
 
-            // Treina por um número FIXO de épocas (sem parada antecipada aqui para simplificar a demo)
+            // Treina por um número FIXO de épocas
             redeFold.treinar(xTreinoFold, yTreinoFold, null, null, parametrosTreinamento);
             errosFinaisTreinoFolds.add(redeFold.historicoErro.get(redeFold.historicoErro.size()-1));
 
@@ -98,7 +102,7 @@ public class ExecucaoValidacaoCruzada extends Execucao {
         double somaAcuracias = 0;
         for(double acc : acuraciasValidacaoFolds) somaAcuracias += acc;
         double mediaAcuraciaValidacao = somaAcuracias / kFolds;
-        System.out.printf("\nResultado Validacao Cruzada (k=%d): Acurácia Media = %.2f%%\n", kFolds, mediaAcuraciaValidacao);
+        System.out.printf("\nResultado Validacao Cruzada (k=%d): Acuracia Media = %.2f%%\n", kFolds, mediaAcuraciaValidacao);
 
         System.out.println("===== FINALIZADA: " + parametrosRede.nomeExecucao().toUpperCase() + " =====");
     }

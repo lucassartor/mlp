@@ -46,6 +46,9 @@ public class MLP {
     private SimpleMatrix z1, a1;         // z1: Soma ponderada + bias da camada escondida; a1: Ativação da camada escondida (pós-sigmoid)
     private SimpleMatrix z2, saidaRede;  // z2: Soma ponderada + bias da camada de saída; saidaRede: Ativação final (pós-sigmoid)
 
+    public List<Double> historicoMediaDeltaW1; // Para a magnitude média das atualizações de W1
+    public List<Double> historicoMediaDeltaW2; // Para a magnitude média das atualizações de W2
+
     /**
      * Construtor da Rede MLP.
      * Inicializa a arquitetura, os pesos, biases e prepara para o treinamento.
@@ -55,7 +58,6 @@ public class MLP {
     public MLP(ParametrosRede parametrosRede) {
         // 1. Define os tamanhos das camadas
         this.parametrosRede = parametrosRede;
-        criarPastaResultadosExecucao(parametrosRede.nomeExecucao());
 
         // 2. Configura o gerador de números aleatórios
         this.geradorAleatorio = new Random(parametrosRede.sementeAleatoria());
@@ -63,6 +65,8 @@ public class MLP {
         // 3. Inicializa a lista para guardar o histórico de erros
         this.historicoErro = new ArrayList<>();
         this.historicoErroValidacao = new ArrayList<>();
+        this.historicoMediaDeltaW1 = new ArrayList<>();
+        this.historicoMediaDeltaW2 = new ArrayList<>();
 
         // 4. Inicializa os pesos e biases
         inicializarPesosEBias();
@@ -75,13 +79,13 @@ public class MLP {
      * Também guarda cópias dos pesos/biases iniciais.
      */
     private void inicializarPesosEBias() {
+
         // --- Inicialização de W1 (Pesos Entrada -> Escondida) ---
-        // Shape: [tamanhoEntrada x tamanhoCamadaEscondida]
         this.W1 = new SimpleMatrix(this.parametrosRede.tamanhoEntrada(), this.parametrosRede.tamanhoCamadaEscondida());
-        for (int i = 0; i < this.W1.getNumRows(); i++) {
-            for (int j = 0; j < this.W1.getNumCols(); j++) {
-                // Preenche com valores da distribuição Gaussiana
-                this.W1.set(i, j, this.geradorAleatorio.nextGaussian());
+        double std = Math.sqrt(2.0 / (parametrosRede.tamanhoEntrada() + parametrosRede.tamanhoCamadaEscondida()));
+        for (int i = 0; i < W1.getNumRows(); i++) {
+            for (int j = 0; j < W1.getNumCols(); j++) {
+                W1.set(i, j, geradorAleatorio.nextGaussian() * std);
             }
         }
 
@@ -91,11 +95,11 @@ public class MLP {
         this.b1 = new SimpleMatrix(1, this.parametrosRede.tamanhoCamadaEscondida());
 
         // --- Inicialização de W2 (Pesos Escondida -> Saída) ---
-        // Shape: [tamanhoCamadaEscondida x tamanhoSaida]
         this.W2 = new SimpleMatrix(this.parametrosRede.tamanhoCamadaEscondida(), this.parametrosRede.tamanhoSaida());
-        for (int i = 0; i < this.W2.getNumRows(); i++) {
-            for (int j = 0; j < this.W2.getNumCols(); j++) {
-                this.W2.set(i, j, this.geradorAleatorio.nextGaussian());
+        std = Math.sqrt(2.0 / (parametrosRede.tamanhoCamadaEscondida() + parametrosRede.tamanhoSaida()));
+        for (int i = 0; i < W2.getNumRows(); i++) {
+            for (int j = 0; j < W2.getNumCols(); j++) {
+                W2.set(i, j, geradorAleatorio.nextGaussian() * std);
             }
         }
 
@@ -330,6 +334,35 @@ public class MLP {
             throw new IllegalStateException("Execute backward() antes de atualizarPesos() para calcular os gradientes.");
         }
 
+        /* todo: TIRAR ESSE TRECHO COMENTADO QUANDO FOR MOSTRAR NO VIDEO!!!!
+        SimpleMatrix deltaW1_atual = this.gradW1.scale(taxaAprendizado);
+        SimpleMatrix deltaW2_atual = this.gradW2.scale(taxaAprendizado);
+
+        // Calcula a MÉDIA DA MAGNITUDE ABSOLUTA dos deltas
+        double somaMagAbsDeltaW1 = 0;
+        if (deltaW1_atual.getNumElements() > 0) {
+            for (int r = 0; r < deltaW1_atual.getNumRows(); r++) {
+                for (int c = 0; c < deltaW1_atual.getNumCols(); c++) {
+                    somaMagAbsDeltaW1 += Math.abs(deltaW1_atual.get(r, c));
+                }
+            }
+        }
+        double mediaMagDeltaW1 = (deltaW1_atual.getNumElements() > 0) ? (somaMagAbsDeltaW1 / deltaW1_atual.getNumElements()) : 0.0;
+
+        double somaMagAbsDeltaW2 = 0;
+        if (deltaW2_atual.getNumElements() > 0) {
+            for (int r = 0; r < deltaW2_atual.getNumRows(); r++) {
+                for (int c = 0; c < deltaW2_atual.getNumCols(); c++) {
+                    somaMagAbsDeltaW2 += Math.abs(deltaW2_atual.get(r, c));
+                }
+            }
+        }
+        double mediaMagDeltaW2 = (deltaW2_atual.getNumElements() > 0) ? (somaMagAbsDeltaW2 / deltaW2_atual.getNumElements()) : 0.0;
+
+        this.historicoMediaDeltaW1.add(mediaMagDeltaW1);
+        this.historicoMediaDeltaW2.add(mediaMagDeltaW2);
+         */
+
         // Atualização W1 = W1 - learningRate * dW1
         // .scale() multiplica a matriz pelo escalar
         // .minus() subtrai matrizes elemento a elemento
@@ -349,10 +382,10 @@ public class MLP {
      * Executa o ciclo completo de treinamento, opcionalmente usando parada antecipada
      * baseada em um conjunto de validação.
      *
-     * @param xTreino Matriz de dados de entrada para treinamento.
-     * @param yTreino Matriz de rótulos verdadeiros (one-hot) para treinamento.
-     * @param xValidacao Matriz de dados de entrada para validação (pode ser null se não usar parada antecipada).
-     * @param yValidacao Matriz de rótulos verdadeiros (one-hot) para validação (pode ser null).
+     * @param xTreino               Matriz de dados de entrada para treinamento.
+     * @param yTreino               Matriz de rótulos verdadeiros (one-hot) para treinamento.
+     * @param xValidacao            Matriz de dados de entrada para validação (pode ser null se não usar parada antecipada).
+     * @param yValidacao            Matriz de rótulos verdadeiros (one-hot) para validação (pode ser null).
      * @param parametrosTreinamento Definicao dos hiperparametros para o treinamento.
      * @return A época em que o treinamento parou (seja pelo maxEpocas ou parada antecipada).
      */
@@ -366,9 +399,10 @@ public class MLP {
         int contadorPaciencia = 0;
         boolean usarParadaAntecipada = (xValidacao != null && yValidacao != null && parametrosTreinamento.pacienciaParadaAntecipada() > 0);
 
-        System.out.println("Iniciando treinamento por no maximo " + parametrosTreinamento.epocas() + " epocas...");
+        System.out.println("Iniciando treinamento com parametros: Epocas = " + parametrosTreinamento.epocas() +
+                ", Taxa de aprendizado =" + parametrosTreinamento.taxaAprendizado() + ", Camada escondida = " + parametrosRede.tamanhoCamadaEscondida());
         if (usarParadaAntecipada) {
-            System.out.println("Parada Antecipada ativada com paciência de " + parametrosTreinamento.pacienciaParadaAntecipada() + " epocas.");
+            System.out.println("Parada Antecipada ativada com paciencia de " + parametrosTreinamento.pacienciaParadaAntecipada() + " epocas.");
         }
 
         for (int epoca = 0; epoca < parametrosTreinamento.epocas(); epoca++) {
@@ -409,9 +443,8 @@ public class MLP {
 
                 // Verifica se a paciência estourou
                 if (contadorPaciencia >= parametrosTreinamento.pacienciaParadaAntecipada()) {
-                    System.out.println("Parada Antecipada acionada na epoca " + (epoca + 1) +
-                            ". Melhor erro de validação (" + String.format("%.8f", this.melhorErroValidacao) +
-                            ") ocorreu na epoca " + this.epocaMelhorErro + ".");
+                    System.out.printf("Parada Antecipada: melhor erro de validacao %.8f obtido na época %d. Treinamento parou na epoca %d.\n",
+                            melhorErroValidacao, epocaMelhorErro, epoca + 1);
                     // Restaura os melhores pesos encontrados
                     restaurarMelhoresPesos();
                     return epoca + 1; // Retorna a época em que parou
@@ -421,7 +454,7 @@ public class MLP {
             // Imprimir progresso
             if ((epoca + 1) % 1000 == 0 || epoca == 0) {
                 if (usarParadaAntecipada) {
-                    System.out.printf("Epoca %d/%d, Erro Treino: %.8f, Erro Validacaoo: %.8f (Melhor: %.8f na epoca %d)\n",
+                    System.out.printf("Epoca %d/%d, Erro Treino: %.8f, Erro Validacao: %.8f (Melhor: %.8f na epoca %d)\n",
                             epoca + 1, parametrosTreinamento.epocas(), erroTreinoAtual, erroValidacaoAtual, melhorErroValidacao, epocaMelhorErro);
                 } else {
                     System.out.printf("Epoca %d/%d, Erro Treino: %.8f\n", epoca + 1, parametrosTreinamento.epocas(), erroTreinoAtual);
@@ -461,7 +494,7 @@ public class MLP {
             this.W2 = this.melhorW2.copy();
             this.b2 = this.melhorB2.copy();
         } else {
-            System.out.println("Aviso: Nenhum peso melhor foi salvo durante a validação (erro de validação nunca melhorou?). Usando pesos da última época.");
+            System.out.println("Aviso: Nenhum peso melhor foi salvo durante a validacao (erro de validacao nunca melhorou?). Usando pesos da última época.");
         }
     }
 }

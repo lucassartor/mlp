@@ -7,9 +7,12 @@ import br.com.usp.ach2016.model.ParametrosTreinamento;
 import br.com.usp.ach2016.model.ResultadoAnaliseConfusao;
 import org.ejml.simple.SimpleMatrix;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static br.com.usp.ach2016.utils.IOUtils.*;
-import static br.com.usp.ach2016.utils.MatrixUtils.calcularMatrizConfusao;
-import static br.com.usp.ach2016.utils.MatrixUtils.gerarResultadosClassificacao;
+import static br.com.usp.ach2016.utils.MatrixUtils.*;
+import static br.com.usp.ach2016.utils.MetricsUtils.formatarDuracao;
 
 public class ExecucaoSimples extends Execucao {
 
@@ -21,7 +24,22 @@ public class ExecucaoSimples extends Execucao {
 
     @Override
     public void executar() {
+        String nomeExecucao = criarPastaResultadosExecucao(parametrosRede.nomeExecucao());
+
+        this.parametrosRede = new ParametrosRede(
+                parametrosRede.tamanhoEntrada(),
+                parametrosRede.tamanhoCamadaEscondida(),
+                parametrosRede.tamanhoSaida(),
+                parametrosRede.sementeAleatoria(),
+                nomeExecucao
+        );
+
         System.out.println("\n\n===== INICIANDO: " + parametrosRede.nomeExecucao().toUpperCase() + " =====");
+
+
+        // Juntando conjunto de treino + de validação (totalizando 1196 exemplos para TREINO)
+        SimpleMatrix xTreinoCompleto = combinarMatrizesVerticalmente(dataset.xTreino(), dataset.xValidacao());
+        SimpleMatrix yTreinoCompleto = combinarMatrizesVerticalmente(dataset.yTreino(), dataset.yValidacao());
 
         MLP redeNeural = new MLP(parametrosRede);
         salvarPesosIniciais(caminhoPastaResultadosExecucao,
@@ -30,7 +48,10 @@ public class ExecucaoSimples extends Execucao {
                            redeNeural.pesosIniciaisW2,
                            redeNeural.biasInicialB2);
 
-        redeNeural.treinar(dataset.xTreino(), dataset.yTreino(), null, null, parametrosTreinamento);
+        long inicioTreino = System.currentTimeMillis();
+        redeNeural.treinar(xTreinoCompleto, yTreinoCompleto, null, null, parametrosTreinamento);
+        String duracaoTreinoFormatada = formatarDuracao(System.currentTimeMillis() - inicioTreino);
+        System.out.println("Tempo de Treinamento: " + duracaoTreinoFormatada);
         salvarResultadosTreino(caminhoPastaResultadosExecucao, parametrosTreinamento, redeNeural);
 
         SimpleMatrix previsoesTeste = redeNeural.prever(dataset.xTeste());
@@ -38,8 +59,21 @@ public class ExecucaoSimples extends Execucao {
         int[][] matrizConfusao = calcularMatrizConfusao(dataset.yTeste(), previsoesTeste);
         salvarMatrizConfusao(caminhoPastaResultadosExecucao, matrizConfusao, dataset.rotulosClasses());
 
+        Map<String, Object> paramsAdicionaisTreino = new HashMap<>();
+        paramsAdicionaisTreino.put("Tempo de Treinamento", duracaoTreinoFormatada); // Adiciona a duração formatada
+
+        //salvarHistoricoDeltaPesos(caminhoPastaResultadosExecucao, redeNeural.historicoMediaDeltaW1, "W1");
+        //salvarHistoricoDeltaPesos(caminhoPastaResultadosExecucao, redeNeural.historicoMediaDeltaW2, "W2");
+
         ResultadoAnaliseConfusao resultadoAnaliseConfusao = gerarResultadosClassificacao(matrizConfusao, dataset, previsoesTeste);
-        salvarResultadosTeste(caminhoPastaResultadosExecucao, dataset, previsoesTeste, parametrosRede, parametrosTreinamento, null, resultadoAnaliseConfusao);
+        salvarResultadosTeste(caminhoPastaResultadosExecucao,
+                              dataset,
+                              previsoesTeste,
+                              parametrosRede,
+                              parametrosTreinamento,
+                              paramsAdicionaisTreino,
+                              resultadoAnaliseConfusao
+        );
 
         System.out.println("===== FINALIZADA: " + parametrosRede.nomeExecucao().toUpperCase() + " =====");
     }
